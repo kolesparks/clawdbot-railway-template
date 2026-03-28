@@ -74,6 +74,8 @@ process.env.OPENCLAW_GATEWAY_TOKEN = OPENCLAW_GATEWAY_TOKEN;
 const INTERNAL_GATEWAY_PORT = Number.parseInt(process.env.INTERNAL_GATEWAY_PORT ?? "18789", 10);
 const INTERNAL_GATEWAY_HOST = process.env.INTERNAL_GATEWAY_HOST ?? "127.0.0.1";
 const GATEWAY_TARGET = `http://${INTERNAL_GATEWAY_HOST}:${INTERNAL_GATEWAY_PORT}`;
+const VOICE_TARGET = "http://127.0.0.1:3334";
+
 
 // Always run the built-from-source CLI entry directly to avoid PATH/global-install mismatches.
 const OPENCLAW_ENTRY = process.env.OPENCLAW_ENTRY?.trim() || "/openclaw/dist/entry.js";
@@ -1334,6 +1336,8 @@ proxy.on("error", (err, _req, res) => {
 function requireDashboardAuth(req, res, next) {
   if (req.path === "/healthz" || req.path === "/setup/healthz") return next();
   if (req.path.startsWith("/hooks")) return next(); // allow OpenClaw webhook endpoints to bypass dashboard auth
+  if (req.path.startsWith("/voice")) return next();   // allow voice-call webhook endpoints to bypass dashboard auth
+
   if (!SETUP_PASSWORD) return next(); // no password configured → open
   const header = req.headers.authorization || "";
   const [scheme, encoded] = header.split(" ");
@@ -1388,6 +1392,11 @@ app.use(requireDashboardAuth, async (req, res) => {
   }
 
   attachGatewayAuthHeader(req);
+
+  if (req.path.startsWith("/voice")) {
+    return proxy.web(req, res, { target: VOICE_TARGET });
+  }
+
   return proxy.web(req, res, { target: GATEWAY_TARGET });
 });
 
@@ -1475,6 +1484,10 @@ server.on("upgrade", async (req, socket, head) => {
     return;
   }
   attachGatewayAuthHeader(req);
+
+   if (req.url?.startsWith("/voice")) {
+    return proxy.ws(req, socket, head, { target: VOICE_TARGET });
+  }
   proxy.ws(req, socket, head, { target: GATEWAY_TARGET });
 });
 
