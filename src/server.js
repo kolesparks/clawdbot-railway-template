@@ -1391,12 +1391,11 @@ app.use(requireDashboardAuth, async (req, res) => {
     }
   }
 
-  attachGatewayAuthHeader(req);
-
   if (req.path.startsWith("/voice")) {
     return proxy.web(req, res, { target: VOICE_TARGET });
   }
 
+  attachGatewayAuthHeader(req);
   return proxy.web(req, res, { target: GATEWAY_TARGET });
 });
 
@@ -1483,11 +1482,12 @@ server.on("upgrade", async (req, socket, head) => {
     socket.destroy();
     return;
   }
-  attachGatewayAuthHeader(req);
 
-   if (req.url?.startsWith("/voice")) {
+  if (req.url?.startsWith("/voice")) {
     return proxy.ws(req, socket, head, { target: VOICE_TARGET });
   }
+  
+  attachGatewayAuthHeader(req);
   proxy.ws(req, socket, head, { target: GATEWAY_TARGET });
 });
 
